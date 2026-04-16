@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HOME</title>
+</head>
+<body>
+<h2>All Posts</h2>
+
+<a href="/create/">Create New Post</a>
+<a href="/logout/">Logout</a>
+
+<hr>
+
+{% for post in posts %}
+    <h3>{{ post.title }}</h3>
+    <p>{{ post.content }}</p>
+    <small>By {{ post.author }}</small> <br>
+
+    {% if post.author == req.user %}
+        <a href="/edit/{{ post.id }}/">Edit</a>
+        <a href="/delete/{{ post.id }}/">Delete</a>
+
+    {% endif %}    
+
+    <hr>
+
+{% endfor %}    
+
+</body>
+</html>

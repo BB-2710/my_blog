@@ -1,63 +1,91 @@
-from django.shortcuts import render
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import generics
-from .models import Post
-from .serializers import PostSerializer
+from django.shortcuts import render, redirect, get_object_or_404
+from .forms import RegisterForm
+from django.contrib.auth import login, logout, authenticate
+from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth.decorators import login_required
+from . models import Post
+from . forms import PostForm
 
-# Create your views here.
+def home(req):
+    posts = Post.objects.all().order_by("created_at")
+    return render(req, "home.html", {"posts": posts})
 
-class PostListCreateAPIView(APIView):
-    def get(self, req):
-        posts = Post.objects.all()
-        serializer = PostSerializer(posts, many=True)
-        return Response(serializer.data)
+@login_required
+def create_post(req):
+    if req.method == "POST":
+        form = PostForm(req.POST)
+        if form.is_valid():
+            post = form.save(commit=False)
+            post.author = req.user
+            post.save()
+            return redirect("home")
+    else:
+        form = PostForm()
+    return render(req, "create_post.html", {"form": form})
+
+@login_required
+def edit_post(req, id):
+    post = get_object_or_404(Post, id=id)
+
+    if post.author != req.user:
+        return redirect("home")
     
-    def post(self, req):
-        serializer = PostSerializer(data=req.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors)
-    
-class PostDetailAPIView(APIView):
-    def get_object(self, pk):
-        return Post.objects.filter(pk=pk).first()
+    if req.method == "POST":
+        form = PostForm(req.POST, instance=post)
+        if form.is_valid():
+            form.save()
+            return redirect("home")
+    else:
+        form = PostForm(instance=post)
+    return render(req, "edit_post.html", {"form": form})
 
-    def get(self, req, pk):
-        post = self.get_object(pk)
-        if not post:
-            return Response({"error": "Post not found"})
+@login_required
+def delete_post(req, id):
+    post = get_object_or_404(Post, id=id)
 
-        serializer = PostSerializer(post)
-        return Response(serializer.data)
-
-    def put(self, req, pk):
-        post = self.get_object(pk)
-        if not post:
-            return Response({"error": "Post not found"})  
-
-        serializer = PostSerializer(post, data=req.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors)
-    
-    def delete(self, req, pk):
-        post = self.get_object(pk)
-        if not post:
-            return Response({"error": "Post not found"})
-
+    if post.author == req.user:
         post.delete()
-        return Response({"message": "Post deleted successfully"})
-    
-class PostListCreateView(generics.ListCreateAPIView):
-    queryset = Post.objects.all()
-    serializer_class = PostSerializer  
+    return redirect("home")            
 
-class PostDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Post.objects.all()
-    serializer_class = PostSerializer
+
+
+def register_view(req):
+    if req.method == "POST":
+        form = RegisterForm(req.POST)
+        if form.is_valid():
+            user = form.save()
+            login(req, user)
+            return redirect("home")
+    else:
+        form = RegisterForm()
+    return render(req, "register.html", {"form": form})
+
+def login_view(req):
+    if req.method == "POST":
+        form = AuthenticationForm(data=req.POST)
+        if form.is_valid():
+            user = form.get_user()
+            login(req, user)
+            return redirect("home")
+    else:
+        form = AuthenticationForm()
+    return render(req, "login.html", {"form": form})
+
+def logout_view(req):
+    logout(req)
+    return redirect("login")
+
+
+       
+
+
+
+
+
+
+
+
+
 
 
 
